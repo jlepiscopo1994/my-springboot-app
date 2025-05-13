@@ -10,6 +10,8 @@ import jakarta.persistence.Table;
 import java.util.Objects;
 
 import jakarta.persistence.Column;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "product")
@@ -22,7 +24,8 @@ public class Product {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @NotNull
+    @DecimalMin(value = "0.0", inclusive = true, message = "Price must be a positive number")
     private java.math.BigDecimal price;
 
     // Constructors, getters, and setters

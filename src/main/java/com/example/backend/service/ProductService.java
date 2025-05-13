@@ -39,15 +39,19 @@ public class ProductService {
 
 
     public Product updateProduct(Long id, String name, BigDecimal price) {
+        if (price.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Product price cannot be negative");
+        }
+
         Optional<Product> optionalProduct = productRepository.findById(id);
-        if (optionalProduct.isPresent()) {
-            Product product = optionalProduct.get();
-            product.setName(name);
-            product.setPrice(price);
-            return productRepository.save(product);
-        } else {
+        if (optionalProduct.isEmpty()) {
             throw new IllegalArgumentException("Product not found");
         }
+
+        Product product = optionalProduct.get();
+        product.setName(name);
+        product.setPrice(price);
+        return productRepository.save(product);
     }
 
     public void deleteProduct(Long id) {

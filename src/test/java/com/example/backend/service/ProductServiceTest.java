@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -128,6 +129,18 @@ class ProductServiceTest {
         // Assert
         assertEquals(existingProduct, updatedProduct);
         verify(productRepository).save(existingProduct);
+    }
+
+    @Test
+    void updateProduct_shouldThrowExceptionForNegativePrice() {
+        Product existing = new Product("Old", BigDecimal.ONE);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+
+        Exception e = assertThrows(IllegalArgumentException.class, () -> {
+            productService.updateProduct(1L, "Updated", new BigDecimal("-100.00"));
+        });
+        assertEquals("Product price cannot be negative", e.getMessage());
+        verify(productRepository, never()).save(any());
     }
 
     @Test
