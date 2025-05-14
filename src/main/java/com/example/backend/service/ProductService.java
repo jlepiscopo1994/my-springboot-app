@@ -46,6 +46,18 @@ public class ProductService {
         return productRepository.findById(id);
     }
 
+/**
+ * The `updateProduct` function updates an existing product with the provided ID using the information
+ * from the updated product object after validating the name and price.
+ * 
+ * @param id The `id` parameter is the unique identifier of the product that needs to be updated. It is
+ * used to retrieve the existing product from the repository based on this identifier.
+ * @param updatedProduct The `updatedProduct` parameter is an instance of the `Product` class that
+ * contains the updated information for a product. It typically includes the new name and price for the
+ * product that needs to be updated in the system.
+ * @return The `updateProduct` method returns the updated `Product` object after updating its name and
+ * price in the database.
+ */
     public Product updateProduct(Integer id, Product updatedProduct) {
         if (updatedProduct.getName() == null || updatedProduct.getName().isEmpty()) {
             throw new IllegalArgumentException("Product name cannot be empty");
@@ -64,6 +76,13 @@ public class ProductService {
         return productRepository.save(existingProduct);
     }
 
+/**
+ * The `deleteProduct` function deletes a product by its ID after checking if it exists in the
+ * repository.
+ * 
+ * @param id The `id` parameter in the `deleteProduct` method is of type `Long` and represents the
+ * unique identifier of the product that needs to be deleted from the repository.
+ */
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new IllegalArgumentException("Product not found");
