@@ -114,21 +114,14 @@ class ProductServiceTest {
 
     @Test
     void updateProduct_shouldUpdateAndReturnProduct() {
-        // Arrange
-        Long id = 1L;
-        String name = "UpdatedProduct";
-        BigDecimal price = new BigDecimal("150.00");
-        Product existingProduct = new Product("OldProduct", new BigDecimal("100.00"));
+        Product existing = new Product("Old", BigDecimal.ONE);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        when(productRepository.findById(id)).thenReturn(Optional.of(existingProduct));
-        when(productRepository.save(existingProduct)).thenReturn(existingProduct);
-
-        // Act
-        Product updatedProduct = productService.updateProduct(id, name, price);
-
-        // Assert
-        assertEquals(existingProduct, updatedProduct);
-        verify(productRepository).save(existingProduct);
+        Product updatedProduct = new Product("Updated", new BigDecimal("150.00"));
+        Product updated = productService.updateProduct(1, updatedProduct);
+        assertEquals("Updated", updated.getName());
+        assertEquals(new BigDecimal("150.00"), updated.getPrice());
     }
 
     @Test
@@ -137,10 +130,25 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         Exception e = assertThrows(IllegalArgumentException.class, () -> {
-            productService.updateProduct(1L, "Updated", new BigDecimal("-100.00"));
+            Product updatedProduct = new Product("Updated", new BigDecimal("-100.00"));
+            productService.updateProduct(1, updatedProduct);
         });
         assertEquals("Product price cannot be negative", e.getMessage());
         verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProduct_shouldThrowExceptionForEmptyName() {
+        Product existing = new Product("Old", BigDecimal.ONE);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+
+        Exception e = assertThrows(IllegalArgumentException.class, () -> {
+            Product updatedProduct = new Product("", new BigDecimal("100.00"));
+            productService.updateProduct(1, updatedProduct);
+        });
+        assertEquals("Product name cannot be empty", e.getMessage());
+        verify(productRepository, never()).save(any());
+
     }
 
     @Test
@@ -154,7 +162,8 @@ class ProductServiceTest {
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            productService.updateProduct(id, name, price);
+            Product updatedProduct = new Product(name, price);
+            productService.updateProduct(id.intValue(), updatedProduct);
         });
         assertEquals("Product not found", exception.getMessage());
     }

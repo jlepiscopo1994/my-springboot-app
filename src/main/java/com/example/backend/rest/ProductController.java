@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 import com.example.backend.dao.ProductRepository;
 import com.example.backend.service.ProductService;
+
+import jakarta.validation.Valid;
+
 import com.example.backend.entity.Product;
 
 
@@ -26,57 +29,62 @@ public class ProductController {
     }
 
 /**
- * Retrieves a list of all products.
- *
- * @return a list of all products stored in the repository
+ * This Java function uses Spring's @GetMapping annotation to retrieve all products from a repository
+ * and return them as a list.
+ * 
+ * @return A list of all products from the product repository is being returned.
  */
     @GetMapping
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
+/**
+ * This Java function creates a new product using the provided name and price, returning the created
+ * product in a ResponseEntity with HTTP status code 201 (Created).
+ * 
+ * @param product The `product` parameter in the `createProduct` method is of type `Product` and is
+ * annotated with `@RequestBody`. This means that the method expects a JSON representation of a
+ * `Product` object in the request body. The `@Valid` annotation is used to trigger validation of the `
+ * @return The method `createProduct` is returning a `ResponseEntity` object with the created `Product`
+ * and a status of `HttpStatus.CREATED`.
+ */
 
-    /**
-     * Creates a new product.
-     *
-     * @param product the product to create
-     * @return the created product
-     */
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+    public ResponseEntity<Product> createProduct(@Valid @RequestBody Product product) {
         Product created = productService.createProduct(product.getName(), product.getPrice());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
-    /**
-     * Retrieves a product by its ID.
-     *
-     * @param id the ID of the product to retrieve
-     * @return the product with the given ID, or null if no such product exists
-     */
+/**
+ * This Java function retrieves a product by its ID from a repository.
+ * 
+ * @param id The `id` parameter in the `getProductById` method is a `Long` type variable representing
+ * the unique identifier of the product that the method is trying to retrieve from the database.
+ * @return The `getProductById` method is returning a `Product` object with the specified `id` from the
+ * `productRepository`. If no product is found with the given `id`, it will return `null`.
+ */
     @GetMapping("/{id}")
     public Product getProductById(@PathVariable Long id) {
         return productRepository.findById(id).orElse(null);
     }
 
-    /**
-     * Updates a product.
-     *
-     * @param id the ID of the product to update
-     * @param updatedProduct the product with the updated information
-     * @return the updated product, or a 404 if no product with the given ID exists
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product updatedProduct) {
-        Product product = productService.updateProduct(id, updatedProduct.getName(), updatedProduct.getPrice());
+    public ResponseEntity<Product> updateProduct(
+        @PathVariable Integer id,
+        @Valid @RequestBody Product updatedProduct
+    ) {
+        Product product = productService.updateProduct(id, updatedProduct);
         return ResponseEntity.ok(product);
     }
 
-    /**
-     * Deletes a product.
-     *
-     * @param id the ID of the product to delete
-     * @return a 204 status code if the product was successfully deleted, or a 404 if no product with the given ID exists
-     */
+/**
+ * This Java function deletes a product by its ID and returns a response entity with no content.
+ * 
+ * @param id The `id` parameter in the `deleteProduct` method is used to specify the identifier of the
+ * product that needs to be deleted. It is extracted from the path variable in the URL when a DELETE
+ * request is made to the endpoint mapped to this method.
+ * @return The method is returning a `ResponseEntity` with a status of `204 No Content`.
+ */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         productService.deleteProduct((long) id);

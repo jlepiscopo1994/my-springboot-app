@@ -17,7 +17,16 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    // Simple business logic: prevent negative prices and empty names.
+/**
+ * The `createProduct` function creates a new product with a given name and price, performing
+ * validation checks before saving it to the repository.
+ * 
+ * @param name The `name` parameter is a `String` representing the name of the product being created.
+ * @param price The `price` parameter in the `createProduct` method is of type `BigDecimal`. It is used
+ * to specify the price of the product being created.
+ * @return The `createProduct` method returns the `Product` object that is saved in the
+ * `productRepository`.
+ */
     public Product createProduct(String name, BigDecimal price) {
         if (name == null || name.isEmpty()) {
             throw new IllegalArgumentException("Product name cannot be empty");
@@ -37,21 +46,22 @@ public class ProductService {
         return productRepository.findById(id);
     }
 
+    public Product updateProduct(Integer id, Product updatedProduct) {
+        if (updatedProduct.getName() == null || updatedProduct.getName().isEmpty()) {
+            throw new IllegalArgumentException("Product name cannot be empty");
+        }
 
-    public Product updateProduct(Long id, String name, BigDecimal price) {
-        if (price.compareTo(BigDecimal.ZERO) < 0) {
+        if (updatedProduct.getPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Product price cannot be negative");
         }
 
-        Optional<Product> optionalProduct = productRepository.findById(id);
-        if (optionalProduct.isEmpty()) {
-            throw new IllegalArgumentException("Product not found");
-        }
+        Product existingProduct = productRepository.findById((long) id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        
+        existingProduct.setName(updatedProduct.getName());
+        existingProduct.setPrice(updatedProduct.getPrice());
 
-        Product product = optionalProduct.get();
-        product.setName(name);
-        product.setPrice(price);
-        return productRepository.save(product);
+        return productRepository.save(existingProduct);
     }
 
     public void deleteProduct(Long id) {

@@ -2,6 +2,7 @@ package com.example.backend.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,26 +79,31 @@ public class ProductControllerTest {
     }
 
     @Test
-    void updateProduct_returnsOk_whenProductExists() {
-        Product updated = new Product("Updated", new BigDecimal("150.00"));
-        when(productService.updateProduct(1L, "Updated", new BigDecimal("150.00")))
-                .thenReturn(updated);
-        
-        ResponseEntity<Product> response = productController.updateProduct(1L, updated);
-        assertEquals("Updated", response.getBody().getName());
+    void updateProduct_returnsUpdatedProduct() {
+        // Arrange
+        Product updatedProduct = new Product("UpdatedProduct", new BigDecimal("150.00"));
+        Product updatedProductInput = new Product("UpdatedProduct", new BigDecimal("150.00"));
+        when(productService.updateProduct(1, updatedProductInput))
+                .thenReturn(updatedProduct);
+
+        // Act
+        ResponseEntity<Product> response = productController.updateProduct((int) 1L, updatedProduct);
+
+        // Assert
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(updatedProduct, response.getBody());
     }
+
 
     @Test
     void updateProduct_returnsNotFound_whenProductMissing() {
-        when(productService.updateProduct(1L, "X", BigDecimal.ONE))
-                .thenThrow(new IllegalArgumentException("Product not found"));
-        
-
         Product input = new Product("X", BigDecimal.ONE);
+        when(productService.updateProduct(1, input))
+                .thenThrow(new IllegalArgumentException("Product not found"));
         // This will now raise the exception, handled globally in real app.
         // In direct calls, you may need to use @WebMvcTest and MockMvc to test full path.
         assertThrows(IllegalArgumentException.class, () -> {
-            productController.updateProduct(1L, input);
+            productController.updateProduct(1, input);
         });
     }
 
