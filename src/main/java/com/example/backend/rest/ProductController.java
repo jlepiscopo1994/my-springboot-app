@@ -8,6 +8,8 @@ import java.util.List;
 import com.example.backend.dao.ProductRepository;
 import com.example.backend.service.ProductService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 
 import com.example.backend.entity.Product;
@@ -35,6 +37,7 @@ public class ProductController {
  * @return A list of all products from the product repository is being returned.
  */
     @GetMapping
+    @Operation(summary = "Get all products")
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
@@ -50,6 +53,7 @@ public class ProductController {
  */
 
     @PostMapping
+    @Operation(summary = "Create a new product")
     public ResponseEntity<Product> createProduct(@Valid @RequestBody Product product) {
         Product created = productService.createProduct(product.getName(), product.getPrice());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -64,13 +68,15 @@ public class ProductController {
  * `productRepository`. If no product is found with the given `id`, it will return `null`.
  */
     @GetMapping("/{id}")
-    public Product getProductById(@PathVariable Long id) {
+    @Operation(summary = "Get a product by ID")
+    public Product getProductById(@Parameter(description = "The ID of the product to retrieve") @PathVariable Long id) {
         return productRepository.findById(id).orElse(null);
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update a product by ID")
     public ResponseEntity<Product> updateProduct(
-        @PathVariable Integer id,
+        @Parameter(description = "The ID of the product to update") @PathVariable Integer id,
         @Valid @RequestBody Product updatedProduct
     ) {
         Product product = productService.updateProduct(id, updatedProduct);
@@ -86,7 +92,8 @@ public class ProductController {
  * @return The method is returning a `ResponseEntity` with a status of `204 No Content`.
  */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
+    @Operation(summary = "Delete a product by ID")
+    public ResponseEntity<Void> deleteProduct(@Parameter(description = "The ID of the product to delete") @PathVariable Integer id) {
         productService.deleteProduct((long) id);
         return ResponseEntity.noContent().build();
     }
