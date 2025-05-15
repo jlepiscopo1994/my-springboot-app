@@ -12,7 +12,7 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    
+
     public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
     }
@@ -47,31 +47,31 @@ public class ProductService {
     }
 
 /**
- * The `updateProduct` function updates an existing product with the provided ID using the information
- * from the updated product object after validating the name and price.
+ * The `updateProduct` function updates an existing product with the provided ID using the
+ * information from the updated product object after validating the name and price.
  * 
  * @param id The `id` parameter is the unique identifier of the product that needs to be updated. It is
  * used to retrieve the existing product from the repository based on this identifier.
- * @param updatedProduct The `updatedProduct` parameter is an instance of the `Product` class that
- * contains the updated information for a product. It typically includes the new name and price for the
- * product that needs to be updated in the system.
+ * @param product The `product` parameter is an instance of the `Product` class that contains the
+ * updated information for a product. It typically includes the new name and price for the product that
+ * needs to be updated in the system.
  * @return The `updateProduct` method returns the updated `Product` object after updating its name and
  * price in the database.
  */
-    public Product updateProduct(Integer id, Product updatedProduct) {
-        if (updatedProduct.getName() == null || updatedProduct.getName().isEmpty()) {
+    public Product updateProduct(Integer id, Product product) {
+        if (product.getName() == null || product.getName().isEmpty()) {
             throw new IllegalArgumentException("Product name cannot be empty");
         }
 
-        if (updatedProduct.getPrice().compareTo(BigDecimal.ZERO) < 0) {
+        if (product.getPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Product price cannot be negative");
         }
 
         Product existingProduct = productRepository.findById((long) id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-        
-        existingProduct.setName(updatedProduct.getName());
-        existingProduct.setPrice(updatedProduct.getPrice());
+
+        existingProduct.setName(product.getName());
+        existingProduct.setPrice(product.getPrice());
 
         return productRepository.save(existingProduct);
     }

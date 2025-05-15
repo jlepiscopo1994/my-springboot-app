@@ -4,17 +4,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.backend.entity.Product;
 import com.example.backend.dao.ProductRepository;
+import com.example.backend.dto.ProductRequestDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.annotation.PreDestroy;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+
+import javax.print.attribute.standard.Media;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -34,16 +42,28 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(properties = "spring.profiles.active=test")
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Testcontainers
-@ExtendWith(SpringExtension.class)
 public class ProductControllerIntegrationTest {
 
     @Container
-    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
-            .withDatabaseName("testdb")
-            .withUsername("user")
-            .withPassword("password");
+    public static MySQLContainer<?> mysqlContainer;
+
+    static {
+        mysqlContainer = new MySQLContainer<>("mysql:8.0")
+                .withDatabaseName("testdb")
+                .withUsername("user")
+                .withPassword("password");
+        mysqlContainer.start();
+    }
+
+    @PreDestroy
+    public void stopContainer() {
+        if (mysqlContainer != null) {
+            mysqlContainer.stop();
+        }
+    }
     
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
@@ -67,44 +87,116 @@ public class ProductControllerIntegrationTest {
         productRepository.deleteAll();
     }
 
+@Test
+void createProduct_shouldReturn201AndProduct() throws Exception {
+    ProductRequestDTO request = new ProductRequestDTO();
+    request.setName("Integration Book");
+    request.setPrice(new BigDecimal("15.99"));
+
+    mockMvc.perform(post("/api/products")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").isNumber())
+        .andExpect(jsonPath("$.name").value("Integration Book"))
+        .andExpect(jsonPath("$.price").value(15.99));
+    }
+
     @Test
-    void createProduct_shouldReturn201AndProduct() throws Exception {
-        Product product = new Product("Integration Book", new BigDecimal("29.99"));
+    void createProduct_withBlankName_shouldReturn400() throws Exception {
+        ProductRequestDTO request = new ProductRequestDTO();
+        request.setName(""); // Invalid
+        request.setPrice(new BigDecimal("10.00"));
 
         mockMvc.perform(post("/api/products")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(product)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.price").value("29.99"));
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void createProduct_withNegativePrice_shouldReturn400() throws Exception {
+        ProductRequestDTO request = new ProductRequestDTO();
+        request.setName("Integration Book");
+        request.setPrice(new BigDecimal("-10.00")); // Invalid
+
+        mockMvc.perform(post("/api/products")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+    }
+
 
     @Test
     void getAllProducts_shouldReturnList() throws Exception {
-        productRepository.save(new Product("Integration Book", new BigDecimal("29.99")));
-        productRepository.save(new Product("Integration Book 2", new BigDecimal("39.99")));
+        Product entity1 = productRepository.save(new Product("Pen", new BigDecimal("2.00")));
+        Product entity2 = productRepository.save(new Product("Pencil", new BigDecimal("1.00")));
 
         mockMvc.perform(get("/api/products"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$[0].id").value(entity1.getId()))
+            .andExpect(jsonPath("$[0].name").value("Pen"))
+            .andExpect(jsonPath("$[0].price").value(2.00))
+            .andExpect(jsonPath("$[1].id").value(entity2.getId()))
+            .andExpect(jsonPath("$[1].name").value("Pencil"))
+            .andExpect(jsonPath("$[1].price").value(1.00));
+
     }
 
     @Test
+    void getProductById_shouldReturnProductResponseDTO() throws Exception {
+        Product entity = productRepository.save(new Product("Pen", new BigDecimal("2.00")));
+
+        mockMvc.perform(get("/api/products/" + entity.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(entity.getId()))
+            .andExpect(jsonPath("$.name").value("Pen"))
+            .andExpect(jsonPath("$.price").value(2.00));
+    }
+
+
+    @Test
+    void updateProduct_shouldReturn200AndUpdatedProduct() throws Exception {
+    // Create and save initial product (setup)
+        Product entity = productRepository.save(new Product("Old", new BigDecimal("1.00")));
+
+        // Prepare DTO for update
+        ProductRequestDTO update = new ProductRequestDTO();
+        update.setName("Updated");
+        update.setPrice(new BigDecimal("5.00"));
+
+        mockMvc.perform(put("/api/products/" + entity.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(update)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(entity.getId()))
+            .andExpect(jsonPath("$.name").value("Updated"))
+            .andExpect(jsonPath("$.price").value(5.00));
+    }
+
+
+    @Test
     void putProduct_withBlankName_shouldReturn400() throws Exception {
-        Product product = new Product("", new BigDecimal("29.99"));
+        ProductRequestDTO productRequestDTO = new ProductRequestDTO();
+        productRequestDTO.setName("");
+        productRequestDTO.setPrice(new BigDecimal("29.99"));
 
         mockMvc.perform(post("/api/products")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(product)))
+                .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void putProduct_withNegativePrice_shouldReturn400() throws Exception {
-        Product product = new Product("Integration Book", new BigDecimal("-29.99"));
+        ProductRequestDTO productRequestDTO = new ProductRequestDTO();
+        productRequestDTO.setName("Integration Book");
+        productRequestDTO.setPrice(new BigDecimal("-29.99"));
 
         mockMvc.perform(post("/api/products")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(product)))
+                .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
     }
 

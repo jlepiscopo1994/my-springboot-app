@@ -21,12 +21,11 @@ import org.springframework.http.ResponseEntity;
 import com.example.backend.entity.Product;
 import com.example.backend.service.ProductService;
 import com.example.backend.dao.ProductRepository;
+import com.example.backend.dto.ProductRequestDTO;
+import com.example.backend.dto.ProductResponseDTO;
 
 @ExtendWith(MockitoExtension.class)
 public class ProductControllerTest {
-
-    @Mock
-    private ProductRepository productRepository;
 
     @Mock
     private ProductService productService;
@@ -41,14 +40,21 @@ public class ProductControllerTest {
         Product product2 = new Product("Product2", new BigDecimal("200.00"));
         List<Product> products = List.of(product1, product2);
 
-        when(productRepository.findAll()).thenReturn(products);
+        when(productService.getAllProducts()).thenReturn(products);
 
         // Act
-        List<Product> actualProducts = productController.getAllProducts();
+        ResponseEntity<List<ProductResponseDTO>> response = productController.getAllProducts();
+        assertNotNull(response);
+        assertNotNull(response.getBody());
+        List<ProductResponseDTO> responseDTOs = response.getBody();
+
+        List<Product> actualProducts = responseDTOs.stream()
+                .map(dto -> new Product(dto.getName(), dto.getPrice()))
+                .toList();
 
         // Assert
         assertEquals(products, actualProducts);
-        verify(productRepository).findAll();
+        verify(productService).getAllProducts();
     }
     
     @Test
@@ -58,23 +64,34 @@ public class ProductControllerTest {
         when(productService.createProduct("Product1", new BigDecimal("100.00"))).thenReturn(product);
 
         // Act
-        ResponseEntity<Product> response = productController.createProduct(product);
+        ProductRequestDTO productRequestDTO = new ProductRequestDTO();;
+        productRequestDTO.setName(product.getName());
+        productRequestDTO.setPrice(product.getPrice());
+        ResponseEntity<ProductResponseDTO> response = productController.createProduct(productRequestDTO);
 
         // Assert
+        assertNotNull(response);
         assertEquals(201, response.getStatusCode().value());
-        assertEquals(product, response.getBody());
+        assertNotNull(response.getBody());
+        ProductResponseDTO responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertEquals(product.getName(), responseBody.getName());
+        assertEquals(product.getPrice(), responseBody.getPrice());
     }
 
     @Test
     void testCreateProduct_returnsNegativePriceException() {
         // Arrange
-        Product product = new Product("Product1", new BigDecimal("-100.00"));
+        ProductRequestDTO productRequestDTO = new ProductRequestDTO();
+        productRequestDTO.setName("Product1");
+        productRequestDTO.setPrice(new BigDecimal("-100.00"));
+        
         when(productService.createProduct("Product1", new BigDecimal("-100.00")))
                 .thenThrow(new IllegalArgumentException("Product price cannot be negative"));
 
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> {
-            productController.createProduct(product);
+            productController.createProduct(productRequestDTO);
         });
     }
 
