@@ -1,7 +1,5 @@
 package com.example.backend.rest;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -20,27 +18,18 @@ import jakarta.annotation.PreDestroy;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import javax.print.attribute.standard.Media;
-
 import org.springframework.core.env.Environment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -50,6 +39,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 @Testcontainers
 public class ProductControllerIntegrationTest {
+
+    @Value("${test.security.user.password}")
+    private String testPassword;
 
     @Autowired
     private Environment env;
@@ -63,7 +55,7 @@ public class ProductControllerIntegrationTest {
     public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
             .withDatabaseName("testdb")
             .withUsername("testuser")
-            .withPassword("testpass");
+            .withPassword("testpassword");
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
@@ -112,7 +104,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
     request.setPrice(new BigDecimal("15.99"));
 
     mockMvc.perform(post("/api/products")
-            .with(httpBasic("testuser", "testpass"))
+            .with(httpBasic("testuser", testPassword))
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -129,7 +121,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         request.setPrice(new BigDecimal("10.00"));
 
         mockMvc.perform(post("/api/products")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
@@ -143,7 +135,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         request.setPrice(new BigDecimal("-10.00")); // Invalid
 
         mockMvc.perform(post("/api/products")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
@@ -157,7 +149,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         Product entity2 = productRepository.save(new Product("Pencil", new BigDecimal("1.00")));
 
         mockMvc.perform(get("/api/products")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
@@ -176,7 +168,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         Product entity = productRepository.save(new Product("Pen", new BigDecimal("2.00")));
 
         mockMvc.perform(get("/api/products/" + entity.getId())
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(entity.getId()))
@@ -197,7 +189,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         update.setPrice(new BigDecimal("5.00"));
 
         mockMvc.perform(put("/api/products/" + entity.getId())
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .content(objectMapper.writeValueAsString(update))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
@@ -214,7 +206,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         productRequestDTO.setPrice(new BigDecimal("29.99"));
 
         mockMvc.perform(post("/api/products")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
@@ -227,7 +219,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         productRequestDTO.setPrice(new BigDecimal("-29.99"));
 
         mockMvc.perform(post("/api/products")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
@@ -238,7 +230,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         Product product = productRepository.save(new Product("Integration Book", new BigDecimal("29.99")));
 
         mockMvc.perform(delete("/api/products/" + product.getId())
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
     }
@@ -246,7 +238,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
     @Test
     void deleteProduct_whenNotFound_shouldReturn400() throws Exception {
         mockMvc.perform(delete("/api/products/999")
-                .with(httpBasic("testuser", "testpass"))
+                .with(httpBasic("testuser", testPassword))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
     }
