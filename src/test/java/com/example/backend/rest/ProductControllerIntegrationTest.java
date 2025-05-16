@@ -8,20 +8,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 
 import com.example.backend.entity.Product;
 import com.example.backend.dao.ProductRepository;
 import com.example.backend.dto.ProductRequestDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import javax.sql.DataSource;
 import jakarta.annotation.PreDestroy;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import javax.print.attribute.standard.Media;
 
+import org.springframework.core.env.Environment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,21 +45,31 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(properties = "spring.profiles.active=test")
+@SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Testcontainers
 public class ProductControllerIntegrationTest {
 
-    @Container
-    public static MySQLContainer<?> mysqlContainer;
+    @Autowired
+    private Environment env;
+    @Test
+    void printUserName() {
+        System.out.println("Active profiles: " + Arrays.toString(env.getActiveProfiles()));
+        System.out.println("User: " + env.getProperty("spring.security.user.name"));
+    }
 
-    static {
-        mysqlContainer = new MySQLContainer<>("mysql:8.0")
-                .withDatabaseName("testdb")
-                .withUsername("user")
-                .withPassword("password");
-        mysqlContainer.start();
+    @Container
+    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
+            .withDatabaseName("testdb")
+            .withUsername("testuser")
+            .withPassword("testpass");
+
+    @DynamicPropertySource
+    static void overrideProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", mysqlContainer::getUsername);
+        registry.add("spring.datasource.password", mysqlContainer::getPassword);
     }
 
     @PreDestroy
@@ -65,12 +79,7 @@ public class ProductControllerIntegrationTest {
         }
     }
     
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", mysqlContainer::getUsername);
-        registry.add("spring.datasource.password", mysqlContainer::getPassword);
-    }
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -81,19 +90,29 @@ public class ProductControllerIntegrationTest {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private DataSource dataSource;
+
     @BeforeEach
     void setUp() {
         // Clear the repository before each test
         productRepository.deleteAll();
     }
 
+    @Test
+    void printJdbcUrl() throws Exception {
+        System.out.println("JDBC URL: " + dataSource.getConnection().getMetaData().getURL());
+    }
+
 @Test
 void createProduct_shouldReturn201AndProduct() throws Exception {
+    System.out.println("Loaded user: " + System.getProperty("spring.security.user.name"));
     ProductRequestDTO request = new ProductRequestDTO();
     request.setName("Integration Book");
     request.setPrice(new BigDecimal("15.99"));
 
     mockMvc.perform(post("/api/products")
+            .with(httpBasic("testuser", "testpass"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -104,11 +123,13 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
 
     @Test
     void createProduct_withBlankName_shouldReturn400() throws Exception {
+        System.out.println("Loaded user: " + System.getProperty("spring.security.user.name"));
         ProductRequestDTO request = new ProductRequestDTO();
         request.setName(""); // Invalid
         request.setPrice(new BigDecimal("10.00"));
 
         mockMvc.perform(post("/api/products")
+                .with(httpBasic("testuser", "testpass"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
@@ -116,11 +137,13 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
 
     @Test
     void createProduct_withNegativePrice_shouldReturn400() throws Exception {
+        System.out.println("Loaded user: " + System.getProperty("spring.security.user.name"));
         ProductRequestDTO request = new ProductRequestDTO();
         request.setName("Integration Book");
         request.setPrice(new BigDecimal("-10.00")); // Invalid
 
         mockMvc.perform(post("/api/products")
+                .with(httpBasic("testuser", "testpass"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
@@ -129,10 +152,13 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
 
     @Test
     void getAllProducts_shouldReturnList() throws Exception {
+        System.out.println("Loaded user: " + System.getProperty("spring.security.user.name"));
         Product entity1 = productRepository.save(new Product("Pen", new BigDecimal("2.00")));
         Product entity2 = productRepository.save(new Product("Pencil", new BigDecimal("1.00")));
 
-        mockMvc.perform(get("/api/products"))
+        mockMvc.perform(get("/api/products")
+                .with(httpBasic("testuser", "testpass"))
+                .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$[0].id").value(entity1.getId()))
@@ -146,9 +172,12 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
 
     @Test
     void getProductById_shouldReturnProductResponseDTO() throws Exception {
+        System.out.println("Loaded user: " + System.getProperty("spring.security.user.name"));
         Product entity = productRepository.save(new Product("Pen", new BigDecimal("2.00")));
 
-        mockMvc.perform(get("/api/products/" + entity.getId()))
+        mockMvc.perform(get("/api/products/" + entity.getId())
+                .with(httpBasic("testuser", "testpass"))
+                .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(entity.getId()))
             .andExpect(jsonPath("$.name").value("Pen"))
@@ -158,6 +187,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
 
     @Test
     void updateProduct_shouldReturn200AndUpdatedProduct() throws Exception {
+        
     // Create and save initial product (setup)
         Product entity = productRepository.save(new Product("Old", new BigDecimal("1.00")));
 
@@ -167,8 +197,9 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         update.setPrice(new BigDecimal("5.00"));
 
         mockMvc.perform(put("/api/products/" + entity.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(update)))
+                .with(httpBasic("testuser", "testpass"))
+                .content(objectMapper.writeValueAsString(update))
+                .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(entity.getId()))
             .andExpect(jsonPath("$.name").value("Updated"))
@@ -183,6 +214,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         productRequestDTO.setPrice(new BigDecimal("29.99"));
 
         mockMvc.perform(post("/api/products")
+                .with(httpBasic("testuser", "testpass"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
@@ -195,6 +227,7 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
         productRequestDTO.setPrice(new BigDecimal("-29.99"));
 
         mockMvc.perform(post("/api/products")
+                .with(httpBasic("testuser", "testpass"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(productRequestDTO)))
                 .andExpect(status().isBadRequest());
@@ -204,13 +237,17 @@ void createProduct_shouldReturn201AndProduct() throws Exception {
     void deleteProduct_shouldReturn204() throws Exception {
         Product product = productRepository.save(new Product("Integration Book", new BigDecimal("29.99")));
 
-        mockMvc.perform(delete("/api/products/" + product.getId()))
+        mockMvc.perform(delete("/api/products/" + product.getId())
+                .with(httpBasic("testuser", "testpass"))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteProduct_whenNotFound_shouldReturn400() throws Exception {
-        mockMvc.perform(delete("/api/products/999"))
+        mockMvc.perform(delete("/api/products/999")
+                .with(httpBasic("testuser", "testpass"))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
     }
 
