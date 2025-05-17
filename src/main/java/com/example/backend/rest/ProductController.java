@@ -6,10 +6,13 @@ import org.springframework.web.bind.annotation.*;
 import org.apache.catalina.connector.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.example.backend.service.ProductService;
 
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -19,17 +22,26 @@ import com.example.backend.dto.ProductResponseDTO;
 import com.example.backend.mapper.ProductMapper;
 import com.example.backend.entity.Product;
 
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+
 
 @RestController
 @RequestMapping("/api/products")
 @CrossOrigin(origins = "http://localhost:3000") // Adjust the origin as needed
 public class ProductController {
+
+    private static final Logger logger = LogManager.getLogger(ProductController.class);
     
 
     private final ProductService productService;
 
-    public ProductController(ProductService productService) {
+    private final MeterRegistry meterRegistry;
+    
+
+    public ProductController(ProductService productService, MeterRegistry meterRegistry) {
         this.productService = productService;
+        this.meterRegistry = meterRegistry;
     }
 
 
@@ -42,6 +54,8 @@ public class ProductController {
     @GetMapping
     @Operation(summary = "Get all products")
     public ResponseEntity<List<ProductResponseDTO>> getAllProducts() {
+        meterRegistry.counter("products.getAll").increment();
+        logger.info("Calling endpoint to get all products");
         List<Product> products = productService.getAllProducts();
         List<ProductResponseDTO> productDTOs = products.stream()
                 .map(ProductMapper::toDTO)
@@ -66,6 +80,8 @@ public class ProductController {
     @PostMapping
     @Operation(summary = "Create a new product")
     public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody ProductRequestDTO dto) {
+        meterRegistry.counter("products.create").increment();
+        logger.info("Calling endpoint to create a new product");
         Product created = productService.createProduct(ProductMapper.toEntity(dto).getName(), ProductMapper.toEntity(dto).getPrice());
         return new ResponseEntity<>(ProductMapper.toDTO(created), HttpStatus.CREATED);
     }
@@ -83,11 +99,14 @@ public class ProductController {
     @GetMapping("/{id}")
     @Operation(summary = "Get a product by ID")
     public ResponseEntity<ProductResponseDTO> getProductById(@Parameter(description = "The ID of the product to retrieve") @PathVariable Long id) {
-        Product product = productService.getProductById(id).get();
-        if (product == null) {
+        meterRegistry.counter("products.getById").increment();
+        logger.info("Calling endpoint to get product by ID: " + id);
+        Optional<Product> product = productService.getProductById(id);
+        if (product.isEmpty()) {
+            logger.error("Error found in getProductById with ID: " + id + " - Product not found");
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(ProductMapper.toDTO(product));
+        return ResponseEntity.ok(ProductMapper.toDTO(product.get()));
     }
 
 /**
@@ -109,6 +128,8 @@ public class ProductController {
         @Parameter(description = "The ID of the product to update") @PathVariable Integer id,
         @Valid @RequestBody Product updatedProduct
     ) {
+        meterRegistry.counter("products.update").increment();
+        logger.info("Calling endpoint to update product by ID: " + id);
         Product product = productService.updateProduct(id, updatedProduct);
         return ResponseEntity.ok(product);
     }
@@ -124,6 +145,8 @@ public class ProductController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a product by ID")
     public ResponseEntity<Void> deleteProduct(@Parameter(description = "The ID of the product to delete") @PathVariable Integer id) {
+        meterRegistry.counter("products.delete").increment();
+        logger.info("Calling endpoint to delete product by ID: " + id);
         productService.deleteProduct((long) id);
         return ResponseEntity.noContent().build();
     }

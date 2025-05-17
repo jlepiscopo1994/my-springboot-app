@@ -1,0 +1,11 @@
+docker run -d `
+  --name=prometheus `
+  -p 9090:9090 `
+  -v "C:\Users\Joseph Lepiscopo\OneDrive\Documents\Projects\Personal` Webpage\backend` -` Copy\src\main\prometheus\prometheus.yml:/etc/prometheus/prometheus.yml" `
+  prom/prometheus
+
+
+docker run --rm -it -v "\OneDrive\Documents\Projects\Personal Webpage\backend\src\main\java\com\prometheus" ubuntu cat prometheus.yml
+
+
+docker run --rm -it -v "C:\Users\Joseph Lepiscopo\Documents\Projects\Personal Webpage\backend\src\main\java\com\prometheus\prometheus.yml" ubuntu cat /etc/prometheus/prometheus.yml

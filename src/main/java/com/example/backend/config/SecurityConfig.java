@@ -26,7 +26,9 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/prometheus").permitAll()
                 .requestMatchers("/api/products/**").authenticated()
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().permitAll()
             )
             .httpBasic(Customizer.withDefaults());

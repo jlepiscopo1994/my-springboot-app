@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s  # How often Prometheus scrapes metrics
+
+scrape_configs:
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]  # Prometheus server itself
+
+
+  - job_name: "spring-boot-app"  # Name for your metrics job
+    metrics_path: "/actuator/prometheus"  # Endpoint exposed by Spring Boot
+    static_configs:
+      - targets: ["host.docker.internal:8080"]  # Connect to host machine's port 8080

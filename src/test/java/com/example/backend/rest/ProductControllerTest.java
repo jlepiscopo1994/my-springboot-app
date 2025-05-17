@@ -96,6 +96,37 @@ public class ProductControllerTest {
     }
 
     @Test
+    void testGetProductById_returnsProductNotFoundException() {
+        // Arrange
+        when(productService.getProductById(1L))
+                .thenThrow(new IllegalArgumentException("Product not found"));
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () -> {
+            productController.getProductById(1L);
+        });
+    }
+
+    @Test
+    void testGetProductById_returnsProduct() {
+        // Arrange
+        Product product = new Product("Product1", new BigDecimal("100.00"));
+        when(productService.getProductById(1L)).thenReturn(Optional.of(product));
+
+        // Act
+        ResponseEntity<ProductResponseDTO> response = productController.getProductById(1L);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        ProductResponseDTO responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertEquals(product.getName(), responseBody.getName());
+        assertEquals(product.getPrice(), responseBody.getPrice());
+    }
+
+    @Test
     void updateProduct_returnsUpdatedProduct() {
         // Arrange
         Product updatedProduct = new Product("UpdatedProduct", new BigDecimal("150.00"));
